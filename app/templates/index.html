@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Contract Assistant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .logo {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        .logo-image {
+            height: 100px;
+            width: auto;
+            object-fit: contain;
+        }
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            padding: 12px 24px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #results {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+            white-space: pre-wrap;
+        }
+        .sources {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        .sources a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .sources a:hover {
+            text-decoration: underline;
+        }
+        .answer {
+            margin-bottom: 15px;
+        }
+        .settings-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .settings-btn {
+            padding: 8px 16px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .settings-btn:hover {
+            background-color: #e9ecef;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1001;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 8px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: black;
+        }
+
+        .setting-item {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .setting-item h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background-color: #0056b3;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background-color: white;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+
+        .comparison-table th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+        }
+
+        .comparison-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .comparison-table tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .dashboard {
+            margin-bottom: 30px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background-color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            min-height: 200px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 180px;
+            width: 100%;
+        }
+
+        .stat-card.wide {
+            grid-column: span 3;
+        }
+
+        .stat-card h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            color: #007bff;
+        }
+    </style>
+    <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <img src="/static/images/logo.png" alt="Lexly" class="logo-image">
+        </div>
+        <div class="dashboard">
+            <div class="dashboard-grid">
+                <div class="stat-card">
+                    <h3>Total Contracts</h3>
+                    <div class="stat-value" id="totalContracts">Loading...</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Contract Types</h3>
+                    <div class="chart-container">
+                        <canvas id="contractTypesChart"></canvas>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <h3>Active vs Expiring</h3>
+                    <div class="chart-container">
+                        <canvas id="expiryStatusChart"></canvas>
+                    </div>
+                </div>
+                <div class="stat-card wide">
+                    <h3>Expiration Timeline</h3>
+                    <div class="chart-container">
+                        <canvas id="expirationTimelineChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="search-box">
+            <input type="text" id="searchInput" 
+                   placeholder="Ask about your contracts (e.g., 'When does XYZ company contract expire?')">
+            <button onclick="askQuestion()">Ask</button>
+        </div>
+        <div id="results">
+            Ask me anything about your contracts!
+        </div>
+    </div>
+
+    <div class="settings-container">
+        <button id="settingsBtn" class="settings-btn">⚙️ Settings</button>
+    </div>
+
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="setting-item">
+                    <h3>Contracts Folder</h3>
+                    <p id="currentFolder">Loading...</p>
+                    <button id="changeFolder" class="btn">Change Folder</button>
+                </div>
+                <div class="setting-item">
+                    <h3>Documents</h3>
+                    <p id="documentStats">Loading...</p>
+                    <button id="reloadDocs" class="btn">Reload Documents</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function askQuestion() {
+            const query = document.getElementById('searchInput').value;
+            const resultsDiv = document.getElementById('results');
+            
+            if (!query.trim()) {
+                resultsDiv.innerHTML = 'Please enter a question';
+                return;
+            }
+
+            try {
+                resultsDiv.innerHTML = 'Thinking...';
+                const response = await fetch('/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query: query })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    resultsDiv.innerHTML = `Error: ${data.error}`;
+                } else {
+                    let html = `<div class="answer">${data.message}</div>`;
+                    if (data.sources && data.sources.length > 0) {
+                        html += '<div class="sources">Sources:<br>';
+                        data.sources.forEach(source => {
+                            html += `- <a href="${source.url}" target="_blank">${source.file}</a><br>`;
+                        });
+                        html += '</div>';
+                    }
+                    resultsDiv.innerHTML = html;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = 'Error processing your question. Please try again.';
+                console.error('Error:', error);
+            }
+        }
+
+        // Add event listener for Enter key
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                askQuestion();
+            }
+        });
+
+        // Get modal elements
+        const modal = document.getElementById('settingsModal');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const closeBtn = document.getElementsByClassName('close')[0];
+        const changeFolderBtn = document.getElementById('changeFolder');
+        const reloadDocsBtn = document.getElementById('reloadDocs');
+        const currentFolder = document.getElementById('currentFolder');
+        const documentStats = document.getElementById('documentStats');
+
+        // Show modal
+        settingsBtn.onclick = function() {
+            modal.style.display = "block";
+            updateSettings();
+        }
+
+        // Close modal
+        closeBtn.onclick = function() {
+            modal.style.display = "none";
+        }
+
+        // Close when clicking outside
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        // Update settings info
+        async function updateSettings() {
+            try {
+                const response = await fetch('/settings/info');
+                const data = await response.json();
+                currentFolder.textContent = data.contracts_dir;
+                documentStats.textContent = `${data.doc_count} documents loaded`;
+            } catch (error) {
+                console.error('Error fetching settings:', error);
+                currentFolder.textContent = 'Error loading folder path';
+                documentStats.textContent = 'Error loading document stats';
+            }
+        }
+
+        // Change folder
+        changeFolderBtn.onclick = async function() {
+            try {
+                console.log("Change folder clicked");
+                if (window.bridge && window.bridge.openFolderDialog) {
+                    console.log("Using desktop bridge");
+                    window.bridge.openFolderDialog();
+                    // Add a delay before updating settings
+                    setTimeout(updateSettings, 1000);
+                } else {
+                    console.log("Bridge not available, using web fallback");
+                    const response = await fetch('/settings/change_folder', { method: 'POST' });
+                    const data = await response.json();
+                    if (data.success) {
+                        updateSettings();
+                    } else {
+                        alert('Failed to change folder: ' + data.error);
+                    }
+                }
+            } catch (error) {
+                console.error('Error changing folder:', error);
+                alert('Error changing folder');
+            }
+        }
+
+        // Reload documents
+        reloadDocsBtn.onclick = async function() {
+            try {
+                const response = await fetch('/settings/reload_docs', { method: 'POST' });
+                const data = await response.json();
+                if (data.success) {
+                    updateSettings();
+                    alert('Documents reloaded successfully!');
+                } else {
+                    alert('Failed to reload documents: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error reloading documents:', error);
+                alert('Error reloading documents');
+            }
+        }
+
+        async function updateDashboard() {
+            try {
+                const response = await fetch('/dashboard/stats');
+                const data = await response.json();
+                
+                // Add these debug logs
+                console.log("Dashboard data:", data);
+                console.log("Timeline data:", data.expiration_timeline);
+                
+                // Clear any existing charts
+                const charts = Chart.getChart("contractTypesChart");
+                if (charts) charts.destroy();
+                const timelineChart = Chart.getChart("expirationTimelineChart");
+                if (timelineChart) timelineChart.destroy();
+                const statusChart = Chart.getChart("expiryStatusChart");
+                if (statusChart) statusChart.destroy();
+                
+                // Update total contracts
+                document.getElementById('totalContracts').textContent = data.total_contracts;
+                
+                // Contract Types Chart
+                const contractTypesCtx = document.getElementById('contractTypesChart').getContext('2d');
+                new Chart(contractTypesCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(data.contract_types),
+                        datasets: [{
+                            data: Object.values(data.contract_types),
+                            backgroundColor: [
+                                '#007bff',
+                                '#28a745',
+                                '#ffc107'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: {
+                                    boxWidth: 12
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Expiry Status Chart
+                const statusCtx = document.getElementById('expiryStatusChart').getContext('2d');
+                new Chart(statusCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Active', 'Expiring Soon'],
+                        datasets: [{
+                            data: [
+                                data.active_vs_expiring.Active,
+                                data.active_vs_expiring['Expiring Soon']
+                            ],
+                            backgroundColor: ['#28a745', '#ffc107']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: {
+                                    boxWidth: 12
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Expiration Timeline Chart
+                const timelineCtx = document.getElementById('expirationTimelineChart').getContext('2d');
+                const timelineData = data.expiration_timeline.map(entry => ({
+                    x: new Date(entry.date),
+                    y: 1,  // All dots will be on the same y-level
+                    contract: entry.contract,
+                    date: entry.date
+                }));
+
+                new Chart(timelineCtx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [{
+                            label: 'Contract Expirations',
+                            data: timelineData,
+                            backgroundColor: '#007bff',
+                            pointRadius: 8,
+                            pointHoverRadius: 10
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: {
+                                    unit: 'month',
+                                    displayFormats: {
+                                        month: 'MMM yyyy'
+                                    }
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Expiration Date'
+                                }
+                            },
+                            y: {
+                                display: false,
+                                min: 0,
+                                max: 2
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const data = context.raw;
+                                        return `${data.contract}\nExpires: ${data.date}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Error updating dashboard:', error);
+            }
+        }
+
+        // Update dashboard when page loads and after folder changes
+        document.addEventListener('DOMContentLoaded', updateDashboard);
+        changeFolderBtn.onclick = async function() {
+            try {
+                console.log("Change folder clicked");
+                if (window.bridge && window.bridge.openFolderDialog) {
+                    console.log("Using desktop bridge");
+                    window.bridge.openFolderDialog();
+                    // Add a delay before updating settings
+                    setTimeout(updateSettings, 1000);
+                } else {
+                    console.log("Bridge not available, using web fallback");
+                    const response = await fetch('/settings/change_folder', { method: 'POST' });
+                    const data = await response.json();
+                    if (data.success) {
+                        updateSettings();
+                    } else {
+                        alert('Failed to change folder: ' + data.error);
+                    }
+                }
+            } catch (error) {
+                console.error('Error changing folder:', error);
+                alert('Error changing folder');
+            }
+            setTimeout(updateDashboard, 1500);
+        };
+        reloadDocsBtn.onclick = async function() {
+            try {
+                const response = await fetch('/settings/reload_docs', { method: 'POST' });
+                const data = await response.json();
+                if (data.success) {
+                    updateSettings();
+                    alert('Documents reloaded successfully!');
+                } else {
+                    alert('Failed to reload documents: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error reloading documents:', error);
+                alert('Error reloading documents');
+            }
+            setTimeout(updateDashboard, 1500);
+        };
+    </script>
+</body>
+</html> 

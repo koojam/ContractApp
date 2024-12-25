@@ -1,0 +1,26 @@
+# Credentials and Environment
+.env
+credentials.json
+token.pickle
+config.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.class
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Logs
+*.log
+app.log
+
+# Local development
+.vscode/
+.idea/
+
+# Chroma DB
+chroma_db/

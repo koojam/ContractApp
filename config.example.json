@@ -1,0 +1,4 @@
+{
+  "contracts_dir": "/path/to/contracts",
+  "source_type": "local"
+}
