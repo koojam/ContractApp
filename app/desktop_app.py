@@ -11,6 +11,9 @@ from app.config_manager import ConfigManager
 from flask import Flask
 from threading import Thread
 from app.routes import main as main_blueprint
+from app.document_index import DocumentIndex
+from typing import List, Set
+import logging
 
 class Bridge(QObject):
     def __init__(self, window):
@@ -25,6 +28,7 @@ class MainWindow(QMainWindow):
     def __init__(self, config_manager):
         super().__init__()
         self.config_manager = config_manager
+        self.document_index = DocumentIndex()
         self.bridge = Bridge(self)
         
         # Add shortcut for DevTools
@@ -137,6 +141,63 @@ class MainWindow(QMainWindow):
             
             # Reload the UI
             self.setup_ui()
+
+    def reload_documents(self):
+        """Smart document reloading"""
+        try:
+            self.show_loading("Updating document index...")
+            
+            # Get current files
+            contracts_dir = self.config_manager.get_contracts_dir()
+            current_files = self._get_contract_files(contracts_dir)
+            
+            # Update index
+            changed_files = self.document_index.sync_files(current_files)
+            if changed_files:
+                self.process_changed_documents(changed_files)
+            
+            return True
+        finally:
+            self.hide_loading()
+
+    def _get_contract_files(self, directory: str) -> List[str]:
+        """Get list of contract files from directory"""
+        contract_files = []
+        for root, _, files in os.walk(directory):
+            for file in files:
+                if file.lower().endswith(('.pdf', '.txt')):
+                    contract_files.append(os.path.join(root, file))
+        return contract_files
+
+    def process_changed_documents(self, changed_files: Set[str]):
+        """Process documents that have changed"""
+        try:
+            for file_path in changed_files:
+                self.show_loading(f"Processing {os.path.basename(file_path)}...")
+                
+                # Extract metadata using existing chain
+                from app.routes import extract_contract_info
+                metadata = extract_contract_info(file_path)
+                
+                # Generate embeddings
+                from app.routes import generate_embeddings
+                embeddings = generate_embeddings(file_path)
+                
+                # Update index
+                self.document_index.update_document(
+                    file_path=file_path,
+                    metadata=metadata,
+                    embeddings=embeddings
+                )
+                
+            # Update QA chain with new data
+            from app.routes import initialize_document_chain
+            global qa_chain
+            qa_chain = initialize_document_chain()
+            
+        except Exception as e:
+            logging.error(f"Error processing documents: {str(e)}")
+            self.show_error("Error processing documents")
 
 def create_app():
     """Create and configure Flask app"""

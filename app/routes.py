@@ -12,6 +12,7 @@ from app.config_manager import ConfigManager
 from typing import List, Dict
 import re
 from langchain.prompts import PromptTemplate
+import logging
 
 main = Blueprint('main', __name__)
 
@@ -499,3 +500,39 @@ def get_dashboard_stats():
 @main.route('/static/<path:filename>')
 def serve_static(filename):
     return send_from_directory('static', filename)
+
+def extract_contract_info(file_path: str) -> Dict:
+    """Extract metadata from a contract file"""
+    try:
+        # Load document
+        loader = PyMuPDFLoader(file_path)
+        doc = loader.load()[0]  # Get first page
+        
+        # Use existing OpenAI call to extract info
+        llm = ChatOpenAI(temperature=0, model_name="gpt-4")
+        response = llm.predict(contract_prompt.format(text=doc.page_content[:4000]))
+        
+        # Parse response into metadata
+        metadata = parse_contract_response(response)
+        return metadata
+        
+    except Exception as e:
+        logging.error(f"Error extracting contract info: {str(e)}")
+        return {}
+
+def generate_embeddings(file_path: str) -> List[float]:
+    """Generate embeddings for a document"""
+    try:
+        # Load document
+        loader = PyMuPDFLoader(file_path)
+        doc = loader.load()[0]
+        
+        # Generate embeddings
+        embeddings = OpenAIEmbeddings()
+        doc_embeddings = embeddings.embed_documents([doc.page_content])
+        
+        return doc_embeddings[0]  # Return first (and only) embedding
+        
+    except Exception as e:
+        logging.error(f"Error generating embeddings: {str(e)}")
+        return []
